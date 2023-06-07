@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "telegram-to-sms"
+version = "0.1.0"
+description = ""
+authors = ["alvinist27 <suhrobhotamov496@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+telethon = "1.28.5"
+apscheduler = "3.10.1"
+pyyaml = "6.0"
+
+
+[tool.poetry.group.dev.dependencies]
+wemake-python-styleguide = "0.18.0"
+mypy = "1.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

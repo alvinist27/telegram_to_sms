@@ -1,0 +1,7 @@
+tg_user_data:
+  api_id: api_id_example
+  api_hash: api_hash_example
+
+channel_ids:
+  - 10000000000
+  - 10000000000
