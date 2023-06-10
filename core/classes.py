@@ -7,10 +7,9 @@ from typing import Any, Optional
 import yaml
 from telethon import TelegramClient
 from telethon.errors import SessionPasswordNeededError
-from telethon.tl.types import InputChannel
 
 from core.choices import UserDataKeys, YamlConfigKeys
-from core.settings import CONFIG_FILE_PATH, SESSION_FILE_NAME
+from core.settings import CLIENT_SESSION_FILE_NAME, CLIENT_SYSTEM_VERSION, CONFIG_FILE_PATH
 
 logger = logging.getLogger('core.classes')
 
@@ -85,7 +84,12 @@ class TelegramController(object):
         self.phone_number = user_auth_data[UserDataKeys.phone_number]
 
     async def get_unread_messages(self):
-        async with TelegramClient(SESSION_FILE_NAME, self.api_id, self.api_hash) as client:
+        async with TelegramClient(
+            session=CLIENT_SESSION_FILE_NAME,
+            api_id=self.api_id,
+            api_hash=self.api_hash,
+            system_version=CLIENT_SYSTEM_VERSION,
+        ) as client:
             await client.connect()
             if not await client.is_user_authorized():
                 await client.send_code_request(self.phone_number)
@@ -96,11 +100,12 @@ class TelegramController(object):
 
             for channel_id in self.channel_ids:
                 entity = await client.get_entity(channel_id)
-                if isinstance(entity, InputChannel):
-                    messages = await client.get_messages(entity, limit=10)
-                    print(f'Message from channel {entity.title}:')
-                    for message in messages:
-                        print(f'{message.sender_id}: {message.text}')
+                if not entity:
+                    continue
+                messages = await client.get_messages(entity, limit=10)
+                print(f'Message from channel {entity.title}:')
+                for message in messages:
+                    print(message.text)
 
 
 if __name__ == '__main__':
