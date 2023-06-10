@@ -7,7 +7,6 @@ class YamlConfigKeys(str, Enum):
     """Enum for yaml config file keys."""
 
     tg_user_data = 'tg_user_data'
-    channel_ids = 'channel_ids'
 
 
 class UserDataKeys(str, Enum):

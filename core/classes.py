@@ -79,7 +79,6 @@ class TelegramController(object):
     def __init__(self):
         config_settings = YamlFileAdapter(CONFIG_FILE_PATH).read()
         user_auth_data = config_settings[YamlConfigKeys.tg_user_data]
-        self.channel_ids = config_settings[YamlConfigKeys.channel_ids]
         self.api_id, self.api_hash = user_auth_data[UserDataKeys.api_id], user_auth_data[UserDataKeys.api_hash]
         self.phone_number = user_auth_data[UserDataKeys.phone_number]
 
@@ -98,14 +97,15 @@ class TelegramController(object):
                 except SessionPasswordNeededError:
                     await client.sign_in(password=input('Password: '))
 
-            for channel_id in self.channel_ids:
-                entity = await client.get_entity(channel_id)
-                if not entity:
+            async for dialog in client.iter_dialogs():
+                if not dialog.unread_count:
                     continue
-                messages = await client.get_messages(entity, limit=10)
-                print(f'Message from channel {entity.title}:')
-                for message in messages:
+                messages = await client.get_messages(dialog.entity, limit=dialog.unread_count)
+                title = getattr(dialog.entity, 'title', 'default')
+                for message in reversed(messages):
+                    print(title)
                     print(message.text)
+                    await client.send_read_acknowledge(dialog.entity, max_id=message.id)
 
 
 if __name__ == '__main__':
