@@ -1,4 +1,4 @@
-"""Module with defining  classes."""
+"""Module with defining classes."""
 
 import asyncio
 import logging
@@ -25,6 +25,7 @@ class BaseAdapter(object):
 
     def write(self, content: Any) -> Any:
         """Write data to destination.
+
         Args:
             content: data to be written.
         """
@@ -60,6 +61,7 @@ class FileAdapter(BaseAdapter):
         else:
             return None
         logger.error(error_message)
+        return None
 
     def read(self) -> Optional[str]:
         """Read data from a file.
@@ -75,6 +77,7 @@ class FileAdapter(BaseAdapter):
         else:
             return file_content
         logger.error(error_message)
+        return None
 
 
 class YamlFileAdapter(BaseAdapter):
@@ -89,10 +92,10 @@ class YamlFileAdapter(BaseAdapter):
         self.file_path = file_path
 
     def write(self, content: bytes) -> None:
-        """Write data to a file.
+        """Write data to a yaml file.
 
         Args:
-            content: data to be written to the file.
+            content: data to be written to the yaml file.
         """
         try:
             with open(self.file_path, 'wb') as file_obj:
@@ -104,6 +107,7 @@ class YamlFileAdapter(BaseAdapter):
         else:
             return None
         logger.error(error_message)
+        return None
 
     def read(self) -> Optional[dict]:
         """Read data from a yaml file.
@@ -121,16 +125,54 @@ class YamlFileAdapter(BaseAdapter):
         else:
             return file_content
         logger.error(error_message)
+        return None
 
 
 class TelegramController(object):
-    def __init__(self):
+    """Controller class for interacting with Telegram messages."""
+
+    def __init__(self) -> None:
+        """Initialize TelegramController object."""
         config_settings = YamlFileAdapter(CONFIG_FILE_PATH).read()
         user_auth_data = config_settings[YamlConfigKeys.tg_user_data]
         self.api_id, self.api_hash = user_auth_data[TgUserDataKeys.api_id], user_auth_data[TgUserDataKeys.api_hash]
         self.phone_number = user_auth_data[TgUserDataKeys.phone_number]
 
-    async def get_unread_messages(self):
+    async def _auth_client(self, client: TelegramClient) -> None:
+        """Authorize Telegram client.
+
+        Args:
+            client: TelegramClient instance.
+        """
+        if not await client.is_user_authorized():
+            await client.send_code_request(self.phone_number)
+            try:
+                await client.sign_in(self.phone_number, input('Enter the code: '))
+            except SessionPasswordNeededError:
+                await client.sign_in(password=input('Enter password: '))
+
+    @staticmethod
+    async def _save_unread_messages(client: TelegramClient) -> None:
+        """Save unread Telegram messages to specified dir.
+
+        Args:
+            client: TelegramClient instance.
+        """
+        async for dialog in client.iter_dialogs():
+            if not dialog.unread_count:
+                continue
+            messages = await client.get_messages(dialog.entity, limit=dialog.unread_count)
+            title = getattr(dialog.entity, 'title', 'default')
+            result_messages = []
+            for message in reversed(messages):
+                result_messages.append(message.text)
+                await client.send_read_acknowledge(dialog.entity, max_id=message.id)
+            channel_content_path = os.path.join(TG_MESSAGES_DIR, f'{title}_{datetime.now().date()}')
+            channel_content = '\n'.join(result_messages)
+            FileAdapter(channel_content_path).write(channel_content)
+
+    async def save_unread_messages(self) -> None:
+        """Connect to Telegram and save unread messages."""
         async with TelegramClient(
             session=CLIENT_SESSION_FILE_NAME,
             api_id=self.api_id,
@@ -138,40 +180,37 @@ class TelegramController(object):
             system_version=CLIENT_SYSTEM_VERSION,
         ) as client:
             await client.connect()
-            if not await client.is_user_authorized():
-                await client.send_code_request(self.phone_number)
-                try:
-                    await client.sign_in(self.phone_number, input('Enter the code: '))
-                except SessionPasswordNeededError:
-                    await client.sign_in(password=input('Enter password: '))
-
-            async for dialog in client.iter_dialogs():
-                if not dialog.unread_count:
-                    continue
-                messages = await client.get_messages(dialog.entity, limit=dialog.unread_count)
-                title = getattr(dialog.entity, 'title', 'default')
-                result_messages = []
-                for message in reversed(messages):
-                    result_messages.append(message.text)
-                    await client.send_read_acknowledge(dialog.entity, max_id=message.id)
-                channel_content_path = os.path.join(TG_MESSAGES_DIR, f'{title}_{datetime.now().date()}')
-                channel_content = '\n'.join(result_messages)
-                FileAdapter(channel_content_path).write(channel_content)
+            await self._auth_client(client)
+            await self._save_unread_messages(client)
 
 
 class SMSController(object):
+    """Controller class for interacting with SMSC API."""
 
     def __init__(self):
+        """Initialize SMSController object."""
         config_settings = YamlFileAdapter(CONFIG_FILE_PATH).read()
         self.receiver_phone = config_settings[YamlConfigKeys.smsc_api_data][SMSApiDataKeys.receiver_phone_number]
         self.smsc_client = smsc_api.SMSC()
 
-    def send_message(self, text):
-        wrapped_messages = wrap(text, width=SMS_SYMBOLS_COUNT_LIMIT)
+    def _send_message(self, message_text: str) -> None:
+        """Send message using the SMSC client.
+
+        Args:
+            message_text: The text message to be sent.
+        """
+        wrapped_messages = wrap(message_text, width=SMS_SYMBOLS_COUNT_LIMIT)
         for message in wrapped_messages:
             self.smsc_client.send_sms(self.receiver_phone, message, translit=1)
+
+    def send_messages(self) -> None:
+        """Send SMS messages for each file in the TG_MESSAGES_DIR directory."""
+        for filename in os.listdir(TG_MESSAGES_DIR):
+            file_path = os.path.join(TG_MESSAGES_DIR, filename)
+            file_content = FileAdapter(file_path=file_path).read()
+            self._send_message(file_content)
 
 
 if __name__ == '__main__':
     telegram_controller = TelegramController()
-    asyncio.run(telegram_controller.get_unread_messages())
+    asyncio.run(telegram_controller.save_unread_messages())
