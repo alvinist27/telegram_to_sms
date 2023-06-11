@@ -2,3 +2,8 @@ tg_user_data:
   api_id: api_id_example
   api_hash: api_hash_example
   phone_number: +77777777777
+
+smsc_api_data:
+  login: login
+  password: password
+  receiver_phone_number: +77777777777
