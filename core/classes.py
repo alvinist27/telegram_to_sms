@@ -17,6 +17,7 @@ from core.settings import (
 )
 
 logger = logging.getLogger('core.classes')
+logging.basicConfig(level=logging.INFO)
 
 
 class BaseAdapter(object):
