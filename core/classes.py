@@ -201,7 +201,7 @@ class SMSController(object):
         """
         wrapped_messages = wrap(message_text, width=SMS_SYMBOLS_COUNT_LIMIT)
         for message in wrapped_messages:
-            self.smsc_client.send_sms(self.receiver_phone, message, translit=1)
+            self.smsc_client.send_sms(str(self.receiver_phone).encode(), message.encode(), translit=1)
 
     def send_messages(self) -> None:
         """Send SMS messages for each file in the TG_MESSAGES_DIR directory."""
