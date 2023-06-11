@@ -146,9 +146,13 @@ class TelegramController(object):
         if not await client.is_user_authorized():
             await client.send_code_request(self.phone_number)
             try:
+                logger.info('Needed code confirmation')
                 await client.sign_in(self.phone_number, input('Enter the code: '))
             except SessionPasswordNeededError:
+                logger.info('Needed password confirmation')
                 await client.sign_in(password=input('Enter password: '))
+            finally:
+                logger.info('Successfully authenticated to telegram account')
 
     @staticmethod
     async def _save_unread_messages(client: TelegramClient) -> None:
@@ -169,6 +173,7 @@ class TelegramController(object):
             channel_content_path = os.path.join(TG_MESSAGES_DIR, f'{title}_{datetime.now().date()}')
             channel_content = '\n'.join(result_messages)
             FileAdapter(channel_content_path).write(channel_content)
+            logger.info(f'Parsed {title} dialog')
 
     async def save_unread_messages(self) -> None:
         """Connect to Telegram and save unread messages."""
@@ -201,7 +206,8 @@ class SMSController(object):
         """
         wrapped_messages = wrap(message_text, width=SMS_SYMBOLS_COUNT_LIMIT)
         for message in wrapped_messages:
-            self.smsc_client.send_sms(str(self.receiver_phone).encode(), message.encode(), translit=1)
+            send_result = self.smsc_client.send_sms(str(self.receiver_phone).encode(), message.encode(), translit=1)
+            logger.info(f'Message sent with result: {send_result}')
 
     def send_messages(self) -> None:
         """Send SMS messages for each file in the TG_MESSAGES_DIR directory."""
@@ -209,6 +215,7 @@ class SMSController(object):
             file_path = os.path.join(TG_MESSAGES_DIR, filename)
             file_content = FileAdapter(file_path=file_path).read()
             self._send_message(file_content)
+            logger.info(f'Sent sms for {filename}')
 
 
 if __name__ == '__main__':
