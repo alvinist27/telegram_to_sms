@@ -11,7 +11,6 @@ import yaml
 from telethon import TelegramClient
 from telethon.errors import SessionPasswordNeededError
 
-import smsc_api
 from core.choices import SMSApiDataKeys, TgUserDataKeys, YamlConfigKeys
 from core.settings import (
     CLIENT_SESSION_FILE_NAME, CLIENT_SYSTEM_VERSION, CONFIG_FILE_PATH, SMS_SYMBOLS_COUNT_LIMIT, TG_MESSAGES_DIR,
@@ -189,9 +188,10 @@ class SMSController(object):
 
     def __init__(self):
         """Initialize SMSController object."""
+        from core.smsc_api import SMSC
         config_settings = YamlFileAdapter(CONFIG_FILE_PATH).read()
         self.receiver_phone = config_settings[YamlConfigKeys.smsc_api_data][SMSApiDataKeys.receiver_phone_number]
-        self.smsc_client = smsc_api.SMSC()
+        self.smsc_client = SMSC()
 
     def _send_message(self, message_text: str) -> None:
         """Send message using the SMSC client.

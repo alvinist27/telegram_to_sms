@@ -1,5 +1,6 @@
 """Module for scheduling functionality."""
 
+import asyncio
 from datetime import datetime, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -26,5 +27,16 @@ def send_messages() -> None:
     sms_controller.send_messages()
 
 
-if __name__ == '__main__':
+async def main():
     scheduler.start()
+    try:
+        while True:
+            await asyncio.sleep(1)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        scheduler.shutdown()
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
