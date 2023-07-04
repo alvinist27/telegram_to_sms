@@ -5,6 +5,7 @@ import logging
 import os
 from datetime import datetime
 from textwrap import wrap
+from time import sleep
 from typing import Any, Optional
 
 import yaml
@@ -13,7 +14,8 @@ from telethon.errors import SessionPasswordNeededError
 
 from core.choices import SMSApiDataKeys, TgUserDataKeys, YamlConfigKeys
 from core.settings import (
-    CLIENT_SESSION_FILE_NAME, CLIENT_SYSTEM_VERSION, CONFIG_FILE_PATH, SMS_SYMBOLS_COUNT_LIMIT, TG_MESSAGES_DIR,
+    CLIENT_SESSION_FILE_NAME, CLIENT_SYSTEM_VERSION, CONFIG_FILE_PATH, MESSAGE_DELIVERY_TIME, SMS_SYMBOLS_COUNT_LIMIT,
+    TG_MESSAGES_DIR,
 )
 
 logger = logging.getLogger('core.classes')
@@ -209,6 +211,7 @@ class SMSController(object):
         for message in wrapped_messages:
             send_result = self.smsc_client.send_sms(str(self.receiver_phone).encode(), message.encode(), translit=1)
             logger.info(f'Message sent with result: {send_result}')
+            sleep(MESSAGE_DELIVERY_TIME)
 
     def send_messages(self) -> None:
         """Send SMS messages for each file in the TG_MESSAGES_DIR directory."""
